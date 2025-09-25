@@ -1,0 +1,75 @@
+/* Custom styles */
+body {
+    transition: background-color 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Animation for correct guess */
+@keyframes correctGuess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.correct-guess {
+    animation: correctGuess 0.5s ease;
+}
+
+/* Guess bubble styles */
+.guess-bubble {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.guess-too-low {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.guess-too-high {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.guess-correct {
+    background-color: #dcfce7;
+    color: #166534;
+    font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    #guessInput {
+        font-size: 1rem;
+    }
+    
+    #submitBtn {
+        width: 100%;
+    }
+}
