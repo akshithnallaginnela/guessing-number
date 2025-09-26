@@ -1,151 +1,352 @@
 // Game state
 let gameState = {
+    gameId: '',
+    playerName: '',
+    socket: null,
+    isConnected: false,
+    gameOver: false,
     secretNumber: 0,
     attempts: 0,
-    maxAttempts: 5, // Reduced from 10 to 5
+    maxAttempts: 10,
     score: 0,
     round: 1,
-    gameOver: false,
     lowerBound: 1,
     upperBound: 100,
-    timeLeft: 5 * 60, // 5 minutes in seconds
-    timer: null,
-    hintsUsed: 0,
-    maxHints: 2,
-    hint1: '',
-    hint2: ''
+    previousGuesses: new Set(),
+    status: 'IN_PROGRESS' // IN_PROGRESS, WON, LOST
 };
 
 // DOM Elements
-let guessInput, submitBtn, newGameBtn, messageEl, attemptsEl, scoreEl, roundEl;
+const loginForm = document.getElementById('loginForm');
+const gameArea = document.getElementById('gameArea');
+const playerNameInput = document.getElementById('playerName');
+const gameIdInput = document.getElementById('gameId');
+const startGameBtn = document.getElementById('startGameBtn');
+const submitGuessBtn = document.getElementById('submitGuess');
+const newGameBtn = document.getElementById('newGameBtn');
+const shareGameBtn = document.getElementById('shareGameBtn');
+const guessInput = document.getElementById('guessInput');
+const messageEl = document.getElementById('message');
+const attemptsEl = document.getElementById('attempts');
+const scoreEl = document.getElementById('score');
+const roundEl = document.getElementById('round');
+const gameIdDisplay = document.getElementById('gameIdDisplay');
 const previousGuessesEl = document.getElementById('previousGuesses');
+const hintArea = document.getElementById('hintArea');
+const hintText = document.getElementById('hintText');
 
-// Initialize the game
-function initGame() {
-    // Make sure DOM elements are initialized
-    if (!guessInput || !submitBtn || !messageEl || !attemptsEl || !scoreEl || !roundEl || !previousGuessesEl) {
-        initDOM();
-    }
+// Modals
+const gameOverModal = document.getElementById('gameOverModal');
+const gameOverTitle = document.getElementById('gameOverTitle');
+const gameOverMessage = document.getElementById('gameOverMessage');
+const playAgainBtn = document.getElementById('playAgainBtn');
+const newGameModalBtn = document.getElementById('newGameModalBtn');
+const shareScoreBtn = document.getElementById('shareScoreBtn');
+const shareModal = document.getElementById('shareModal');
+const shareLink = document.getElementById('shareLink');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+const closeShareModal = document.getElementById('closeShareModal');
 
-    gameState.secretNumber = generateRandomNumber(gameState.lowerBound, gameState.upperBound);
-    gameState.attempts = 0;
-    gameState.gameOver = false;
-    gameState.hintsUsed = 0;
-    gameState.timeLeft = 5 * 60; // Reset timer to 5 minutes
+// Initialize the WebSocket connection
+function initWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const wsUrl = protocol + window.location.host + '/guessing-game/game';
     
-    // Clear any existing timer
-    if (gameState.timer) {
-        clearInterval(gameState.timer);
+    gameState.socket = new WebSocket(wsUrl);
+    
+    gameState.socket.onopen = function() {
+        console.log('WebSocket connection established');
+        gameState.isConnected = true;
+        
+        // Join the game
+        const joinMessage = {
+            type: 'JOIN',
+            playerName: gameState.playerName,
+            gameId: gameState.gameId || ''
+        };
+        
+        gameState.socket.send(JSON.stringify(joinMessage));
+    };
+    
+    gameState.socket.onmessage = function(event) {
+        const response = JSON.parse(event.data);
+        console.log('Received message:', response);
+        
+        switch (response.type) {
+            case 'GAME_UPDATE':
+                updateGameState(response);
+                updateUI(response);
+                break;
+                
+            case 'GAME_OVER':
+                gameState.gameOver = true;
+                gameState.status = response.status;
+                showGameOver(response);
+                updateUI(response);
+                break;
+                
+            case 'ERROR':
+                showMessage(response.message, 'text-red-600');
+                console.error('Error from server:', response.message);
+                break;
+        }
+    };
+    
+    gameState.socket.onclose = function() {
+        console.log('WebSocket connection closed');
+        gameState.isConnected = false;
+        showMessage('Connection lost. Please refresh the page to reconnect.', 'text-red-600');
+    };
+    
+    gameState.socket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        showMessage('Connection error. Please try again later.', 'text-red-600');
+    };
+}
+
+// Update game state from server response
+function updateGameState(response) {
+    gameState.attempts = response.attempts || 0;
+    gameState.maxAttempts = response.maxAttempts || 10;
+    gameState.score = response.score || 0;
+    gameState.round = response.round || 1;
+    gameState.status = response.status || 'IN_PROGRESS';
+    gameState.gameOver = gameState.status !== 'IN_PROGRESS';
+    
+    if (response.secretNumber) {
+        gameState.secretNumber = response.secretNumber;
     }
     
-    // Start the timer
-    gameState.timer = setInterval(updateTimer, 1000);
-    updateTimer();
-    
-    // Update UI
-    if (attemptsEl) attemptsEl.textContent = gameState.maxAttempts - gameState.attempts;
-    if (previousGuessesEl) previousGuessesEl.innerHTML = '';
-    if (guessInput) {
-        guessInput.value = '';
-        guessInput.disabled = false;
+    if (response.previousGuesses) {
+        gameState.previousGuesses = new Set(response.previousGuesses);
     }
-    if (submitBtn) submitBtn.disabled = false;
+}
+
+// Update the UI based on game state
+function updateUI(response) {
+    // Update game info
+    roundEl.textContent = gameState.round;
+    scoreEl.textContent = gameState.score;
+    attemptsEl.textContent = gameState.maxAttempts - gameState.attempts;
     
-    const hintBtn = document.getElementById('hintBtn');
-    if (hintBtn) {
-        hintBtn.disabled = false;
-        hintBtn.textContent = `Get Hint (${gameState.maxHints - gameState.hintsUsed} left)`;
+    // Update message
+    if (response.message) {
+        showMessage(response.message);
     }
     
-    // Generate initial hints
-    gameState.hint1 = generateHint(gameState.secretNumber);
-    gameState.hint2 = generateHint(gameState.secretNumber);
+    // Update previous guesses
+    updatePreviousGuesses();
     
-    // Make sure hints are different
-    while (gameState.hint2 === gameState.hint1) {
-        gameState.hint2 = generateHint(gameState.secretNumber);
+    // Show/hide hint
+    if (response.hint) {
+        showHint(response.hint);
     }
     
-    const hint1El = document.getElementById('hint1');
-    const hint2El = document.getElementById('hint2');
+    // Enable/disable input based on game state
+    guessInput.disabled = gameState.gameOver;
+    submitGuessBtn.disabled = gameState.gameOver;
     
-    if (hint1El) hint1El.textContent = 'Click to reveal hint 1';
-    if (hint2El) hint2El.textContent = 'Click to reveal hint 2';
+    // Update game ID display
+    gameIdDisplay.textContent = gameState.gameId;
+}
+
+// Update the previous guesses display
+function updatePreviousGuesses() {
+    previousGuessesEl.innerHTML = '';
     
-    if (messageEl) {
-        messageEl.textContent = `I'm thinking of a number between ${gameState.lowerBound} and ${gameState.upperBound}...`;
-        messageEl.className = 'text-center text-lg font-medium text-gray-700 mb-6 min-h-8';
+    gameState.previousGuesses.forEach(guess => {
+        const bubble = document.createElement('div');
+        bubble.className = 'bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium guess-bubble';
+        bubble.textContent = guess;
+        
+        if (guess < gameState.secretNumber) {
+            bubble.className = 'bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium guess-bubble';
+        } else if (guess > gameState.secretNumber) {
+            bubble.className = 'bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium guess-bubble';
+        } else {
+            bubble.className = 'bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium guess-bubble';
+        }
+        
+        previousGuessesEl.appendChild(bubble);
+    });
+}
+
+// Show a hint
+function showHint(hint) {
+    hintText.textContent = hint;
+    hintArea.classList.remove('hidden');
+}
+
+// Show game over modal
+function showGameOver(response) {
+    if (gameState.status === 'WON') {
+        gameOverTitle.textContent = 'You Won!';
+        gameOverMessage.textContent = `Congratulations! You guessed the number ${gameState.secretNumber} in ${gameState.attempts} attempts.`;
+    } else {
+        gameOverTitle.textContent = 'Game Over';
+        gameOverMessage.textContent = `The number was ${gameState.secretNumber}. Better luck next time!`;
     }
     
-    console.log('Secret number:', gameState.secretNumber); // For debugging
+    gameOverModal.classList.remove('hidden');
+}
+
+// Hide game over modal
+function hideGameOverModal() {
+    gameOverModal.classList.add('hidden');
+}
+
+// Show share modal
+function showShareModal() {
+    const gameUrl = `${window.location.origin}${window.location.pathname}?gameId=${gameState.gameId}`;
+    shareLink.value = gameUrl;
+    shareModal.classList.remove('hidden');
+}
+
+// Hide share modal
+function hideShareModal() {
+    shareModal.classList.add('hidden');
+}
+
+// Show message to user
+function showMessage(message, className = '') {
+    messageEl.textContent = message;
+    messageEl.className = `text-center text-lg font-medium mb-6 min-h-12 ${className}`;
 }
 
 // Handle guess submission
 function handleGuess() {
-    if (gameState.gameOver) return;
+    const guess = parseInt(guessInput.value.trim());
     
-    const guess = parseInt(guessInput.value);
-    
-    // Validate input
-    if (isNaN(guess) || guess < gameState.lowerBound || guess > gameState.upperBound) {
-        showMessage(`Please enter a number between ${gameState.lowerBound} and ${gameState.upperBound}`, 'text-red-600');
+    if (isNaN(guess) || guess < 1 || guess > 100) {
+        showMessage('Please enter a number between 1 and 100', 'text-red-600');
         return;
     }
     
-    gameState.attempts++;
-    attemptsEl.textContent = Math.max(0, gameState.maxAttempts - gameState.attempts);
-    
-    // Add to previous guesses
-    const guessBubble = document.createElement('div');
-    guessBubble.textContent = guess;
-    guessBubble.className = 'guess-bubble';
-    
-    // Check the guess
-    if (guess < gameState.secretNumber) {
-        guessBubble.classList.add('guess-too-low');
-        showMessage('Too low! Try a higher number.', 'text-blue-600');
-    } else if (guess > gameState.secretNumber) {
-        guessBubble.classList.add('guess-too-high');
-        showMessage('Too high! Try a lower number.', 'text-red-600');
-    } else {
-        // Correct guess
-        guessBubble.classList.add('guess-correct');
-        gameState.score += Math.ceil((gameState.timeLeft / (5 * 60)) * 100); // Higher score for faster completion
-        scoreEl.textContent = gameState.score;
-        showMessage(`Congratulations! You guessed the number in ${gameState.attempts} attempts with ${Math.floor(gameState.timeLeft / 60)}:${gameState.timeLeft % 60 < 10 ? '0' : ''}${gameState.timeLeft % 60} remaining!`, 'text-green-600 font-semibold');
-        messageEl.classList.add('correct-guess');
-        endGame(true);
+    if (gameState.previousGuesses.has(guess)) {
+        showMessage('You already guessed that number!', 'text-yellow-600');
+        return;
     }
     
-    previousGuessesEl.prepend(guessBubble);
-    guessInput.value = '';
+    if (gameState.socket && gameState.socket.readyState === WebSocket.OPEN) {
+        const guessMessage = {
+            type: 'GUESS',
+            guess: guess
+        };
+        
+        gameState.socket.send(JSON.stringify(guessMessage));
+        guessInput.value = '';
+    } else {
+        showMessage('Not connected to server. Please refresh the page.', 'text-red-600');
+    }
+}
+
+// Start a new game
+function startNewGame() {
+    if (gameState.socket && gameState.socket.readyState === WebSocket.OPEN) {
+        const newGameMessage = {
+            type: 'NEW_GAME'
+        };
+        
+        gameState.socket.send(JSON.stringify(newGameMessage));
+        hideGameOverModal();
+    }
+}
+
+// Initialize the game
+function initGame() {
+    // Set up event listeners
+    setupEventListeners();
     
-    // Check if game over (out of attempts)
-    if (!gameState.gameOver && gameState.attempts >= gameState.maxAttempts) {
-        showMessage(`Game Over! The number was ${gameState.secretNumber}.`, 'text-red-600 font-semibold');
-        endGame(false);
+    // Initialize WebSocket connection
+    initWebSocket();
+}
+
+// Set up event listeners
+function setupEventListeners() {
+    // Start game button
+    startGameBtn.addEventListener('click', () => {
+        const name = playerNameInput.value.trim();
+        const gameId = gameIdInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter your name');
+            return;
+        }
+        
+        gameState.playerName = name;
+        gameState.gameId = gameId;
+        
+        // Show game area and hide login form
+        loginForm.classList.add('hidden');
+        gameArea.classList.remove('hidden');
+        
+        // Initialize the game
+        initGame();
+    });
+    
+    // Submit guess on button click
+    submitGuessBtn.addEventListener('click', handleGuess);
+    
+    // Submit guess on Enter key
+    guessInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleGuess();
+        }
+    });
+    
+    // New game button
+    newGameBtn.addEventListener('click', startNewGame);
+    
+    // Share game button
+    shareGameBtn.addEventListener('click', showShareModal);
+    
+    // Game over modal buttons
+    playAgainBtn.addEventListener('click', startNewGame);
+    newGameModalBtn.addEventListener('click', () => {
+        window.location.reload();
+    });
+    shareScoreBtn.addEventListener('click', showShareModal);
+    
+    // Share modal buttons
+    copyLinkBtn.addEventListener('click', () => {
+        shareLink.select();
+        document.execCommand('copy');
+        copyLinkBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyLinkBtn.textContent = 'Copy';
+        }, 2000);
+    });
+    
+    closeShareModal.addEventListener('click', hideShareModal);
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === gameOverModal) {
+            hideGameOverModal();
+        }
+        if (e.target === shareModal) {
+            hideShareModal();
+        }
+    });
+}
+
+// Check for game ID in URL parameters
+function checkForGameId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameId = urlParams.get('gameId');
+    
+    if (gameId) {
+        gameIdInput.value = gameId;
     }
 }
 
 // Show a hint
-function showHint(hintNum) {
+function showHint(hint) {
     if (gameState.gameOver) return;
     
-    const hintElement = document.getElementById(`hint${hintNum}`);
-    if (hintElement.textContent.includes('Click to reveal')) {
-        const hintText = hintNum === 1 ? gameState.hint1 : gameState.hint2;
-        hintElement.textContent = `Hint ${hintNum}: ${hintText}`;
-        gameState.hintsUsed++;
-        
-        // Update the hint button text
-        const hintsLeft = gameState.maxHints - gameState.hintsUsed;
-        document.getElementById('hintBtn').textContent = `Get Hint (${hintsLeft} left)`;
-        
-        // Disable the hint button if all hints are used
-        if (gameState.hintsUsed >= gameState.maxHints) {
-            document.getElementById('hintBtn').disabled = true;
-        }
-    }
+    // In our WebSocket implementation, hints are sent from the server
+    // This function is kept for compatibility but the logic is now server-side
+    console.log('Hint requested:', hint);
 }
 
 // Show message with optional class
@@ -156,11 +357,9 @@ function showMessage(msg, className = '') {
 
 // Initialize DOM elements
 function initDOM() {
-    guessInput = document.getElementById('guessInput');
-    submitBtn = document.getElementById('submitBtn');
-    newGameBtn = document.getElementById('newGameBtn');
-    messageEl = document.getElementById('message');
-    attemptsEl = document.getElementById('attempts');
+    // DOM elements are already initialized at the top of the file
+    // This function is kept for compatibility
+    console.log('DOM initialized');
     scoreEl = document.getElementById('score');
     roundEl = document.getElementById('round');
     previousGuessesEl = document.getElementById('previousGuesses');
