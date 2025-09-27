@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Guessing Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        #message {
+            margin: 20px 0;
+            font-size: 1.2em;
+            min-height: 30px;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 1.2em;
+            width: 100px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #attempts {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Number Guessing Game</h1>
+        <p>I'm thinking of a number between 1 and 100. Can you guess it?</p>
+        
+        <div id="message">Enter your first guess!</div>
+        
+        <div>
+            <input type="number" id="guessInput" min="1" max="100" placeholder="1-100">
+            <button onclick="checkGuess()">Submit Guess</button>
+        </div>
+        
+        <div id="attempts">Attempts: <span id="attemptsCount">0</span>/10</div>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="newGame()">New Game</button>
+        </div>
+    </div>
+
+    <script>
+        let secretNumber = Math.floor(Math.random() * 100) + 1;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        function checkGuess() {
+            const guessInput = document.getElementById('guessInput');
+            const message = document.getElementById('message');
+            const attemptsDisplay = document.getElementById('attemptsCount');
+            
+            const guess = parseInt(guessInput.value);
+            
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                message.textContent = 'Please enter a number between 1 and 100!';
+                return;
+            }
+            
+            attempts++;
+            attemptsDisplay.textContent = attempts;
+            
+            if (guess === secretNumber) {
+                message.innerHTML = `🎉 Congratulations! You've guessed the number in ${attempts} attempts!`;
+                message.style.color = '#27ae60';
+                guessInput.disabled = true;
+            } else if (guess < secretNumber) {
+                message.textContent = 'Too low! Try a higher number.';
+                message.style.color = '#e74c3c';
+            } else {
+                message.textContent = 'Too high! Try a lower number.';
+                message.style.color = '#e74c3c';
+            }
+            
+            if (attempts >= maxAttempts && guess !== secretNumber) {
+                message.textContent = `Game Over! The number was ${secretNumber}.`;
+                guessInput.disabled = true;
+            }
+            
+            guessInput.value = '';
+            guessInput.focus();
+        }
+        
+        function newGame() {
+            secretNumber = Math.floor(Math.random() * 100) + 1;
+            attempts = 0;
+            document.getElementById('attemptsCount').textContent = '0';
+            document.getElementById('message').textContent = 'Enter your first guess!';
+            document.getElementById('message').style.color = '#e74c3c';
+            document.getElementById('guessInput').disabled = false;
+            document.getElementById('guessInput').focus();
+        }
+        
+        // Allow pressing Enter to submit
+        document.getElementById('guessInput').addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                checkGuess();
+            }
+        });
+        
+        // Focus the input field when the page loads
+        window.onload = function() {
+            document.getElementById('guessInput').focus();
+        };
+    </script>
+</body>
+</html>
