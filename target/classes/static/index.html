@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Guessing Game</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-slow {
+            animation: bounce 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+        <h1 class="text-3xl font-bold text-center text-indigo-600 mb-2">Guess the Number</h1>
+        <p class="text-center text-gray-600 mb-6">I'm thinking of a number between 1 and 100</p>
+        
+        <div class="bg-indigo-50 p-4 rounded-lg mb-6">
+            <p id="message" class="text-center font-medium text-indigo-800">Can you guess it?</p>
+            <p id="attempts" class="text-center text-sm text-indigo-600 mt-1">Attempts: <span>0</span></p>
+            <p id="score" class="text-center text-sm text-indigo-600">Score: <span>0</span></p>
+        </div>
+        
+        <div class="flex flex-col space-y-4">
+            <input type="number" id="guessInput" 
+                   class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                   placeholder="Enter your guess" min="1" max="100">
+            
+            <div class="flex space-x-4">
+                <button id="guessButton" 
+                        class="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                    Guess
+                </button>
+                <button id="hintButton" 
+                        class="px-4 bg-yellow-500 text-white py-3 rounded-lg hover:bg-yellow-600 transition-colors">
+                    Hint
+                </button>
+            </div>
+            
+            <button id="newGameButton" 
+                    class="w-full bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300 transition-colors">
+                New Game
+            </button>
+        </div>
+    </div>
+
+    <script src="/game.js"></script>
+</body>
+</html>
