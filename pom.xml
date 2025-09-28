@@ -53,11 +53,13 @@
             <artifactId>stomp-websocket</artifactId>
             <version>2.3.4</version>
         </dependency>
+        <!-- Google Cloud Vertex AI -->
         <dependency>
-            <groupId>com.google.ai.generativelanguage</groupId>
-            <artifactId>google-ai-generativelanguage</artifactId>
-            <version>0.1.0</version>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-aiplatform</artifactId>
+            <version>3.45.0</version>
         </dependency>
+        <!-- Required for authentication -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
@@ -79,6 +81,14 @@
             <version>2.10.1</version>
         </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>google-cloud-maven-repo</id>
+            <name>Google Cloud Maven Repository</name>
+            <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>

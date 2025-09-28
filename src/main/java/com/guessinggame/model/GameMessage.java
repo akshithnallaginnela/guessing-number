@@ -1,21 +1,31 @@
 package com.guessinggame.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class GameMessage {
-    private String type;  // "GUESS", "NEW_GAME", "JOIN"
+    public enum MessageType {
+        NEW_GAME,
+        GUESS,
+        HINT,
+        GAME_OVER,
+        ERROR
+    }
+
+    private MessageType type;
     private String playerName;
     private Integer guess;
     private String gameId;
-
-    // Getters and Setters
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    
-    public String getPlayerName() { return playerName; }
-    public void setPlayerName(String playerName) { this.playerName = playerName; }
-    
-    public Integer getGuess() { return guess; }
-    public void setGuess(Integer guess) { this.guess = guess; }
-    
-    public String getGameId() { return gameId; }
-    public void setGameId(String gameId) { this.gameId = gameId; }
+    private String message;
+    private Integer attemptsLeft;
+    private Integer secretNumber;
+    private Boolean isCorrect;
+    private String hint;
+    private Integer score;
 }
